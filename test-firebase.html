@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+
+<html>
+<head><meta charset="UTF-8"><title>Firebase Test</title></head>
+<body>
+<h2 id="status">กำลังทดสอบ...</h2>
+<pre id="log" style="background:#f0f0f0;padding:16px;font-size:13px;"></pre>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script>
+function log(msg){ document.getElementById('log').textContent += msg + '\n'; }
+log('1. โหลด Firebase SDK สำเร็จ');
+try {
+  firebase.initializeApp({
+    apiKey: "AIzaSyBQ-d5_uAuQHMCjadq_tciYdBIeoswLRds",
+    databaseURL: "https://neverlandclinic-stock-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "neverlandclinic-stock"
+  });
+  log('2. initializeApp สำเร็จ');
+  var db = firebase.database();
+  log('3. สร้าง db instance สำเร็จ');
+  db.ref('.info/connected').on('value', function(snap){
+    log('4. connected = ' + snap.val());
+    document.getElementById('status').textContent = snap.val() ? '✅ เชื่อมต่อสำเร็จ!' : '❌ ยังไม่ได้เชื่อมต่อ';
+  });
+  db.ref('drugs').limitToFirst(1).once('value', function(snap){
+    log('5. อ่าน drugs สำเร็จ จำนวน: ' + snap.numChildren());
+    document.getElementById('status').textContent = '✅ Firebase ทำงานปกติ!';
+  }, function(err){
+    log('5. ERROR อ่าน drugs: ' + err.message + ' (code: ' + err.code + ')');
+    document.getElementById('status').textContent = '❌ ' + err.message;
+  });
+} catch(e) {
+  log('ERROR: ' + e.message);
+  document.getElementById('status').textContent = '❌ ' + e.message;
+}
+</script>
+</body>
+</html>
