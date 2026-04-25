@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neverland Clinic Stock</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey:      "AIzaSyBQ-d5_uAuQHMCjadq_tciYdBIeoswLRds",
+    databaseURL: "https://neverlandclinic-stock-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:   "neverlandclinic-stock"
+  });
+  var db = firebase.database();
+</script>
+<style>
+  :root {
+    --rose:#D4938A; --blush:#C4A8A2; --silver:#C8CACF; --sage:#8FA48A;
+    --brick:#C0584A; --cream:#F5F0EE; --white:#FDFCFB;
+    --text:#3D3330; --text-light:#7A6E6B; --shadow:rgba(61,51,48,0.08);
+    --gold:#B8860B; --profit:#4a7245;
+    --font:-apple-system,'Helvetica Neue',Arial,'Noto Sans Thai',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:var(--cream);color:var(--text);min-height:100vh;}
+
+.header{background:var(–white);border-bottom:1.5px solid rgba(196,168,162,0.3);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px var(–shadow);}
+.logo{font-size:20px;font-weight:700;color:var(–rose);letter-spacing:0.5px;}
+.logo span{color:var(–sage);}
+.header-left{display:flex;align-items:center;gap:10px;}
+.header-actions{display:flex;gap:8px;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(–silver);transition:background 0.3s;flex-shrink:0;}
+.sync-dot.online{background:var(–sage);box-shadow:0 0 0 3px rgba(143,164,138,0.25);}
+.sync-dot.syncing{background:var(–blush);animation:pulse 1s infinite;}
+.sync-dot.error{background:var(–brick);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+.btn{padding:9px 16px;border:none;border-radius:50px;font-family:var(–font);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.2s;white-space:nowrap;}
+.btn-add{background:linear-gradient(135deg,var(–sage),#7a9478);color:#fff;box-shadow:0 4px 14px rgba(143,164,138,0.35);}
+.btn-reduce{background:linear-gradient(135deg,var(–brick),#a84035);color:#fff;box-shadow:0 4px 14px rgba(192,88,74,0.35);}
+.btn-cancel{background:transparent;color:var(–text-light);border:1.5px solid var(–silver);}
+.btn-save{background:linear-gradient(135deg,var(–rose),#c07870);color:#fff;}
+.btn-edit{background:rgba(196,168,162,0.2);color:var(–text-light);border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;}
+.btn-edit:hover{background:rgba(196,168,162,0.38);}
+.btn-delete{background:rgba(192,88,74,0.1);color:var(–brick);border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;}
+.btn:active{transform:scale(0.97);}
+
+.container{max-width:1280px;margin:0 auto;padding:18px 14px;}
+.page-title{font-size:22px;font-weight:700;margin-bottom:3px;}
+.page-sub{font-size:12.5px;color:var(–text-light);margin-bottom:18px;}
+
+.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px;}
+@media(min-width:600px){.stats-row{grid-template-columns:repeat(4,1fr);}}
+.stat-card{background:var(–white);border-radius:14px;padding:14px 15px;box-shadow:0 2px 10px var(–shadow);border-left:4px solid transparent;}
+.stat-card.rose{border-color:var(–rose);}.stat-card.sage{border-color:var(–sage);}
+.stat-card.blush{border-color:var(–blush);}.stat-card.brick{border-color:var(–brick);}
+.stat-label{font-size:10px;color:var(–text-light);margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;}
+.stat-value{font-size:22px;font-weight:800;color:var(–text);}
+.stat-unit{font-size:12px;color:var(–text-light);font-weight:400;}
+
+.search-row{display:flex;gap:10px;margin-bottom:14px;align-items:center;}
+.search-box{flex:1;position:relative;}
+.search-box input{width:100%;padding:10px 14px 10px 36px;border:1.5px solid rgba(196,168,162,0.35);border-radius:50px;background:var(–white);font-family:var(–font);font-size:14px;color:var(–text);outline:none;}
+.search-box input:focus{border-color:var(–rose);}
+.search-box::before{content:‘🔍’;position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;}
+.filter-select{padding:9px 12px;border-radius:50px;border:1.5px solid rgba(196,168,162,0.35);background:var(–white);font-family:var(–font);font-size:13px;outline:none;cursor:pointer;color:var(–text);}
+
+.table-wrap{background:var(–white);border-radius:18px;box-shadow:0 2px 16px var(–shadow);overflow:hidden;}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:1000px;}
+thead tr{background:linear-gradient(135deg,rgba(143,164,138,0.12),rgba(212,147,138,0.08));border-bottom:2px solid rgba(196,168,162,0.2);}
+th{padding:11px 13px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(–text-light);white-space:nowrap;}
+th.profit-col{color:var(–profit);}
+th.sell-col{color:var(–gold);}
+tbody tr{border-bottom:1px solid rgba(196,168,162,0.1);transition:background 0.15s;}
+tbody tr:hover{background:rgba(245,240,238,0.7);}
+tbody tr:last-child{border-bottom:none;}
+td{padding:11px 13px;vertical-align:middle;white-space:nowrap;}
+td.drug-name{white-space:normal;min-width:130px;font-weight:600;cursor:pointer;}
+td.drug-name:hover{color:var(–rose);}
+.td-remaining{font-weight:800;font-size:14px;}
+.td-remaining.low{color:var(–brick);}.td-remaining.ok{color:var(–sage);}
+.td-sell{font-weight:700;color:var(–gold);}
+.td-profit{font-weight:700;}
+.td-profit.pos{color:var(–profit);}
+.td-profit.neg{color:var(–brick);}
+.badge{display:inline-block;padding:3px 10px;border-radius:50px;font-size:11px;font-weight:700;}
+.badge-paid{background:rgba(143,164,138,0.16);color:#4a7245;}
+.badge-unpaid{background:rgba(192,88,74,0.12);color:var(–brick);}
+.source-tag{display:inline-block;padding:2px 8px;border-radius:4px;background:rgba(200,202,207,0.28);font-size:11.5px;color:var(–text-light);}
+.action-cell{display:flex;gap:6px;align-items:center;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(61,51,48,0.42);backdrop-filter:blur(4px);z-index:200;align-items:flex-end;justify-content:center;}
+@media(min-width:600px){.modal-overlay{align-items:center;}}
+.modal-overlay.open{display:flex;}
+.modal{background:var(–white);border-radius:22px 22px 0 0;padding:22px 18px 34px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 -8px 40px rgba(61,51,48,0.18);animation:slideUp 0.26s ease;}
+@media(min-width:600px){.modal{border-radius:22px;padding:26px;max-width:540px;animation:fadeIn 0.2s ease;}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.modal-handle{width:40px;height:4px;background:rgba(196,168,162,0.45);border-radius:2px;margin:0 auto 16px;}
+@media(min-width:600px){.modal-handle{display:none;}}
+.modal-header{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+.modal-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.modal-icon.add{background:rgba(143,164,138,0.16);}
+.modal-icon.reduce{background:rgba(192,88,74,0.12);}
+.modal-icon.edit{background:rgba(212,147,138,0.18);}
+.modal-icon.edit-mov{background:rgba(184,134,11,0.12);}
+.modal-title{font-size:18px;font-weight:700;color:var(–text);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-full{grid-column:span 2;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group label{font-size:10px;font-weight:700;color:var(–text-light);text-transform:uppercase;letter-spacing:0.6px;}
+.form-group input,.form-group select{padding:11px 13px;border:1.5px solid rgba(196,168,162,0.38);border-radius:10px;font-family:var(–font);font-size:15px;color:var(–text);background:var(–cream);outline:none;-webkit-appearance:none;}
+.form-group input:focus,.form-group select:focus{border-color:var(–rose);background:var(–white);}
+.form-group input[readonly]{background:rgba(143,164,138,0.08);color:var(–sage);font-weight:700;}
+.form-hint{font-size:11px;color:var(–text-light);margin-top:2px;}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid rgba(196,168,162,0.16);}
+.divider{grid-column:span 2;height:1px;background:rgba(196,168,162,0.2);margin:4px 0;}
+.section-label{grid-column:span 2;font-size:10px;font-weight:700;color:var(–text-light);text-transform:uppercase;letter-spacing:0.8px;padding-top:4px;}
+
+/* DETAIL */
+.detail-page{display:none;position:fixed;inset:0;background:var(–cream);z-index:150;overflow-y:auto;}
+.detail-page.open{display:block;}
+.detail-header{background:var(–white);border-bottom:1px solid rgba(196,168,162,0.2);padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;box-shadow:0 2px 12px var(–shadow);}
+.back-btn{width:34px;height:34px;border-radius:50%;border:1.5px solid rgba(196,168,162,0.38);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(–text);flex-shrink:0;}
+.detail-drug-name{font-size:19px;font-weight:700;}
+.detail-drug-sub{font-size:11.5px;color:var(–text-light);margin-top:2px;}
+.detail-body{max-width:840px;margin:0 auto;padding:20px 14px;}
+.detail-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:22px;}
+.section-title{font-size:16px;font-weight:700;margin-bottom:12px;}
+.filter-tabs{display:flex;gap:7px;margin-bottom:16px;flex-wrap:wrap;}
+.filter-tab{padding:6px 15px;border-radius:50px;border:1.5px solid rgba(196,168,162,0.38);background:transparent;font-family:var(–font);font-size:12.5px;cursor:pointer;transition:all 0.2s;color:var(–text-light);font-weight:600;}
+.filter-tab.active{background:var(–rose);border-color:var(–rose);color:#fff;}
+
+/* TIMELINE */
+.timeline-item{display:grid;grid-template-columns:68px 24px 1fr;gap:0 12px;align-items:stretch;}
+.tl-date-col{text-align:right;padding:12px 0;}
+.tl-date{font-size:11px;color:var(–text-light);font-weight:600;}
+.tl-time{font-size:10px;color:var(–silver);}
+.tl-line-col{display:flex;flex-direction:column;align-items:center;}
+.tl-dot{width:10px;height:10px;border-radius:50%;margin-top:16px;flex-shrink:0;border:2px solid var(–white);}
+.tl-dot.in{background:var(–sage);box-shadow:0 0 0 3px rgba(143,164,138,0.2);}
+.tl-dot.out{background:var(–brick);box-shadow:0 0 0 3px rgba(192,88,74,0.16);}
+.tl-line{width:2px;flex:1;background:rgba(196,168,162,0.22);min-height:14px;}
+.tl-card{background:var(–white);border-radius:12px;padding:11px 14px;margin:7px 0;box-shadow:0 2px 8px var(–shadow);border-left:3px solid transparent;}
+.tl-card.in{border-color:var(–sage);}.tl-card.out{border-color:var(–brick);}
+.tl-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+.tl-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;}
+.tl-type.in{color:var(–sage);}.tl-type.out{color:var(–brick);}
+.tl-qty{font-size:16px;font-weight:800;}
+.tl-qty.in{color:var(–sage);}.tl-qty.out{color:var(–brick);}
+.tl-note{font-size:12px;color:var(–text-light);}
+.tl-badges{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;}
+.tl-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;}
+.tl-badge-cost{background:rgba(192,88,74,0.08);color:var(–brick);}
+.tl-badge-sell{background:rgba(184,134,11,0.1);color:var(–gold);}
+.tl-badge-profit{background:rgba(74,114,69,0.1);color:var(–profit);}
+.tl-edit-btn{font-size:11px;color:var(–text-light);background:rgba(196,168,162,0.18);border:none;border-radius:10px;padding:3px 10px;cursor:pointer;margin-top:5px;}
+.tl-edit-btn:hover{background:rgba(196,168,162,0.32);}
+
+.empty-state{text-align:center;padding:46px 20px;color:var(–text-light);}
+.empty-icon{font-size:42px;margin-bottom:8px;opacity:0.4;}
+
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(–text);color:#fff;padding:11px 24px;border-radius:50px;font-size:13px;font-weight:600;z-index:999;transition:transform 0.3s ease;white-space:nowrap;box-shadow:0 4px 20px rgba(61,51,48,0.25);}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(61,51,48,0.42);backdrop-filter:blur(4px);z-index:300;align-items:center;justify-content:center;padding:20px;}
+.confirm-overlay.open{display:flex;}
+.confirm-box{background:var(–white);border-radius:20px;padding:24px;max-width:320px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(61,51,48,0.2);}
+.confirm-icon{font-size:36px;margin-bottom:12px;}
+.confirm-title{font-size:16px;font-weight:700;margin-bottom:8px;}
+.confirm-msg{font-size:13px;color:var(–text-light);margin-bottom:20px;line-height:1.6;}
+.confirm-actions{display:flex;gap:10px;justify-content:center;}
+</style>
+
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <div class="logo">Clinic<span>Stock</span></div>
+    <div class="sync-dot syncing" id="syncDot"></div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-add"    onclick="openAddModal()">＋ เพิ่มรายการ</button>
+    <button class="btn btn-reduce" onclick="openReduceModal()">− ลดรายการ</button>
+  </div>
+</header>
+
+<div class="toast" id="toast"></div>
+
+<!-- CONFIRM -->
+
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">🗑️</div>
+    <div class="confirm-title">ลบรายการนี้?</div>
+    <div class="confirm-msg" id="confirmMsg">ข้อมูลจะถูกลบถาวร</div>
+    <div class="confirm-actions">
+      <button class="btn btn-cancel" onclick="closeConfirm()">ยกเลิก</button>
+      <button class="btn btn-reduce" onclick="confirmDelete()">ลบเลย</button>
+    </div>
+  </div>
+</div>
+
+<div id="mainPage">
+<div class="container">
+  <div class="page-title">คลังยาคลินิก</div>
+  <div class="page-sub" id="syncStatus">กำลังเชื่อมต่อ Firebase...</div>
+
+  <div class="stats-row">
+    <div class="stat-card rose"><div class="stat-label">รายการทั้งหมด</div><div class="stat-value" id="statTotal">—<span class="stat-unit"> รายการ</span></div></div>
+    <div class="stat-card sage"><div class="stat-label">คงเหลือรวม</div><div class="stat-value" id="statUnits">—<span class="stat-unit"> ชิ้น</span></div></div>
+    <div class="stat-card blush"><div class="stat-label">ยาใกล้หมด</div><div class="stat-value" id="statLow">—<span class="stat-unit"> รายการ</span></div></div>
+    <div class="stat-card brick"><div class="stat-label">ค้างชำระ</div><div class="stat-value" id="statUnpaid">—<span class="stat-unit"> รายการ</span></div></div>
+  </div>
+
+  <div class="search-row">
+    <div class="search-box"><input type="text" id="searchInput" placeholder="ค้นหาชื่อยา..." oninput="renderTable()"></div>
+    <select class="filter-select" onchange="renderTable()" id="filterPaid">
+      <option value="">ทั้งหมด</option>
+      <option value="paid">จ่ายแล้ว</option>
+      <option value="unpaid">ค้างจ่าย</option>
+    </select>
+  </div>
+
+  <div class="table-wrap"><div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>วันที่ซื้อ</th><th>ชื่อยา</th><th>กล่อง</th><th>ชิ้น/กล่อง</th>
+        <th>ราคา/กล่อง</th><th>ราคา/ยูนิต</th><th>คงเหลือ</th>
+        <th class="sell-col">ราคาขาย/ครั้ง</th><th class="profit-col">กำไร/ครั้ง</th>
+        <th>ที่มา</th><th>สถานะ</th><th>จัดการ</th>
+      </tr></thead>
+      <tbody id="tableBody">
+        <tr><td colspan="12" style="padding:40px;text-align:center;color:var(--text-light)">กำลังโหลด...</td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</div>
+</div>
+
+<!-- DETAIL PAGE -->
+
+<div class="detail-page" id="detailPage">
+  <div class="detail-header">
+    <button class="back-btn" onclick="closeDetail()">←</button>
+    <div>
+      <div class="detail-drug-name" id="detailName">—</div>
+      <div class="detail-drug-sub"  id="detailSub">—</div>
+    </div>
+  </div>
+  <div class="detail-body">
+    <div class="detail-summary" id="detailSummary"></div>
+    <div class="section-title">ประวัติการเคลื่อนไหว</div>
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="filterTimeline('all',this)">ทั้งหมด</button>
+      <button class="filter-tab" onclick="filterTimeline('in',this)">นำเข้า</button>
+      <button class="filter-tab" onclick="filterTimeline('out',this)">ใช้ออก</button>
+    </div>
+    <div id="timelineContainer"></div>
+  </div>
+</div>
+
+<!-- MODAL ADD -->
+
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-icon add">💊</div><div class="modal-title">เพิ่มรายการยา</div></div>
+    <div class="form-grid">
+      <div class="form-group"><label>วันที่ซื้อ</label><input type="date" id="addDate"></div>
+      <div class="form-group"><label>ที่มา</label><input type="text" id="addSource" placeholder="เช่น บ.เมดิซิน"></div>
+      <div class="form-group form-full"><label>ชื่อยา</label><input type="text" id="addName" placeholder="ชื่อยาหรือเวชภัณฑ์"></div>
+      <div class="form-group"><label>จำนวนกล่อง</label><input type="number" id="addBoxes" min="1" inputmode="numeric" placeholder="0"></div>
+      <div class="form-group"><label>ชิ้นต่อกล่อง</label><input type="number" id="addPerBox" min="1" inputmode="numeric" placeholder="0"></div>
+      <div class="form-group"><label>ราคา/กล่อง (฿)</label><input type="number" id="addPriceBox" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+      <div class="form-group"><label>สถานะ</label>
+        <select id="addPaid"><option value="paid">✓ จ่ายแล้ว</option><option value="unpaid">✗ ค้างจ่าย</option></select>
+      </div>
+      <div class="divider"></div>
+      <div class="section-label">💉 ข้อมูลการใช้งาน (ไม่บังคับ)</div>
+      <div class="form-group">
+        <label>ยูนิตต่อการใช้ 1 ครั้ง</label>
+        <input type="number" id="addUnitPerUse" min="0.01" step="0.01" inputmode="decimal" placeholder="เช่น 0.5, 1, 2" oninput="calcAddProfit()">
+        <div class="form-hint">ใช้เพื่อคำนวณต้นทุน/กำไรต่อครั้ง</div>
+      </div>
+      <div class="form-group">
+        <label>ราคาขาย/ครั้ง (฿)</label>
+        <input type="number" id="addSellPrice" min="0" step="1" inputmode="decimal" placeholder="0" oninput="calcAddProfit()">
+      </div>
+      <div class="form-group">
+        <label>ต้นทุน/ครั้ง (คำนวณอัตโนมัติ)</label>
+        <input type="text" id="addCostPerUse" readonly placeholder="—">
+      </div>
+      <div class="form-group">
+        <label>กำไร/ครั้ง (คำนวณอัตโนมัติ)</label>
+        <input type="text" id="addProfitPerUse" readonly placeholder="—">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeAddModal()">ยกเลิก</button>
+      <button class="btn btn-save"   onclick="saveAdd()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIT DRUG -->
+
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-icon edit">✏️</div><div class="modal-title">แก้ไขรายการยา</div></div>
+    <input type="hidden" id="editKey">
+    <div class="form-grid">
+      <div class="form-group"><label>วันที่ซื้อ</label><input type="date" id="editDate"></div>
+      <div class="form-group"><label>ที่มา</label><input type="text" id="editSource"></div>
+      <div class="form-group form-full"><label>ชื่อยา</label><input type="text" id="editName"></div>
+      <div class="form-group"><label>จำนวนกล่อง</label><input type="number" id="editBoxes" min="1" inputmode="numeric"></div>
+      <div class="form-group"><label>ชิ้นต่อกล่อง</label><input type="number" id="editPerBox" min="1" inputmode="numeric"></div>
+      <div class="form-group"><label>ราคา/กล่อง (฿)</label><input type="number" id="editPriceBox" min="0" step="0.01" inputmode="decimal"></div>
+      <div class="form-group"><label>สถานะ</label>
+        <select id="editPaid"><option value="paid">✓ จ่ายแล้ว</option><option value="unpaid">✗ ค้างจ่าย</option></select>
+      </div>
+      <div class="divider"></div>
+      <div class="section-label">💉 ข้อมูลการใช้งาน</div>
+      <div class="form-group">
+        <label>ยูนิตต่อการใช้ 1 ครั้ง</label>
+        <input type="number" id="editUnitPerUse" min="0.01" step="0.01" inputmode="decimal" oninput="calcEditProfit()">
+      </div>
+      <div class="form-group">
+        <label>ราคาขาย/ครั้ง (฿)</label>
+        <input type="number" id="editSellPrice" min="0" step="1" inputmode="decimal" oninput="calcEditProfit()">
+      </div>
+      <div class="form-group">
+        <label>ต้นทุน/ครั้ง</label>
+        <input type="text" id="editCostPerUse" readonly placeholder="—">
+      </div>
+      <div class="form-group">
+        <label>กำไร/ครั้ง</label>
+        <input type="text" id="editProfitPerUse" readonly placeholder="—">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeEditModal()">ยกเลิก</button>
+      <button class="btn btn-save"   onclick="saveEdit()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REDUCE -->
+
+<div class="modal-overlay" id="reduceModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-icon reduce">📤</div><div class="modal-title">บันทึกการใช้ยา</div></div>
+    <div class="form-grid">
+      <div class="form-group form-full"><label>เลือกยา</label><select id="reduceDrug" onchange="onDrugSelect()"></select></div>
+      <div class="form-group"><label>วันที่ใช้</label><input type="date" id="reduceDate"></div>
+      <div class="form-group"><label>เวลา</label><input type="time" id="reduceTime"></div>
+      <div class="form-group">
+        <label>จำนวนยูนิตที่ใช้</label>
+        <input type="number" id="reduceQty" min="0.01" step="0.01" inputmode="decimal" placeholder="0" oninput="calcReducePreview()">
+        <div class="form-hint" id="reduceQtyHint"></div>
+      </div>
+      <div class="form-group">
+        <label>ราคาขายครั้งนี้ (฿)</label>
+        <input type="number" id="reduceSell" min="0" step="1" inputmode="decimal" placeholder="0" oninput="calcReducePreview()">
+        <div class="form-hint" id="reduceSellHint"></div>
+      </div>
+      <div class="form-group">
+        <label>ต้นทุนครั้งนี้</label>
+        <input type="text" id="reduceCost" readonly placeholder="—">
+      </div>
+      <div class="form-group">
+        <label>กำไรครั้งนี้</label>
+        <input type="text" id="reduceProfit" readonly placeholder="—">
+      </div>
+      <div class="form-group form-full"><label>หมายเหตุ</label><input type="text" id="reduceNote" placeholder="เช่น ผู้ป่วย A"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeReduceModal()">ยกเลิก</button>
+      <button class="btn btn-reduce" onclick="saveReduce()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIT MOVEMENT -->
+
+<div class="modal-overlay" id="editMovModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><div class="modal-icon edit-mov">📝</div><div class="modal-title">แก้ไขรายการใช้ยา</div></div>
+    <input type="hidden" id="editMovKey">
+    <div class="form-grid">
+      <div class="form-group"><label>วันที่</label><input type="date" id="editMovDate"></div>
+      <div class="form-group"><label>เวลา</label><input type="time" id="editMovTime"></div>
+      <div class="form-group">
+        <label>จำนวนยูนิต</label>
+        <input type="number" id="editMovQty" min="0.01" step="0.01" inputmode="decimal" oninput="calcEditMovPreview()">
+      </div>
+      <div class="form-group">
+        <label>ราคาขาย (฿)</label>
+        <input type="number" id="editMovSell" min="0" step="1" inputmode="decimal" oninput="calcEditMovPreview()">
+      </div>
+      <div class="form-group">
+        <label>ต้นทุน</label>
+        <input type="text" id="editMovCost" readonly placeholder="—">
+      </div>
+      <div class="form-group">
+        <label>กำไร</label>
+        <input type="text" id="editMovProfit" readonly placeholder="—">
+      </div>
+      <div class="form-group form-full"><label>หมายเหตุ</label><input type="text" id="editMovNote"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeEditMovModal()">ยกเลิก</button>
+      <button class="btn btn-save"   onclick="saveEditMov()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var drugs=[],movements=[];
+var currentDetailFilter='all',currentDrugId=null;
+var pendingDeleteKey=null,pendingDeleteType=null;
+var editMovDrugId=null; // drugId ของ movement ที่กำลัง edit
+
+// ===== FIREBASE =====
+db.ref('drugs').on('value',function(snap){
+  drugs=[];
+  snap.forEach(function(c){var d=c.val();d._key=c.key;drugs.push(d);});
+  renderTable();
+  setSyncDot('online');
+  document.getElementById('syncStatus').textContent='🔥 Neverland Clinic — sync real-time ✓';
+},function(e){setSyncDot('error');showToast('❌ '+e.message);});
+
+db.ref('movements').on('value',function(snap){
+  movements=[];
+  snap.forEach(function(c){var m=c.val();m._key=c.key;movements.push(m);});
+  renderTable();
+  if(currentDrugId) renderTimeline();
+});
+
+// ===== HELPERS =====
+function gid(d){return d._key||d.id;}
+function getRemaining(id){
+  return movements.filter(function(m){return m.drugId===id;})
+    .reduce(function(s,m){return m.type==='in'?s+m.qty:s-m.qty;},0);
+}
+function formatDate(s){if(!s)return'—';var p=s.split('-');return p[2]+'/'+p[1]+'/'+(+p[0]+543);}
+function setSyncDot(s){document.getElementById('syncDot').className='sync-dot '+(s||'');}
+function showToast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},3000);}
+function nowTime(){var n=new Date();return n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');}
+function fmtMoney(v){return v!==null&&v!==undefined&&!isNaN(v)?'฿'+parseFloat(v).toLocaleString('th-TH',{minimumFractionDigits:0,maximumFractionDigits:2}):'—';}
+
+function costPerUnitOf(drug){
+  return drug&&drug.perBox>0?drug.pricePerBox/drug.perBox:0;
+}
+
+// ===== RENDER TABLE =====
+function renderTable(){
+  var q=(document.getElementById('searchInput').value||'').toLowerCase();
+  var pf=document.getElementById('filterPaid').value;
+  var rows=drugs.filter(function(d){return d.name&&d.name.toLowerCase().indexOf(q)>=0&&(!pf||d.paid===pf);});
+
+  var body=document.getElementById('tableBody');
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--text-light)">ไม่พบข้อมูล</td></tr>';
+  } else {
+    body.innerHTML=rows.map(function(d){
+      var id=gid(d),rem=getRemaining(id);
+      var cls=rem<d.boxes*d.perBox*0.2?'low':'ok';
+      var pu=d.perBox>0?(d.pricePerBox/d.perBox).toFixed(2):'—';
+      var cpu=costPerUnitOf(d);
+      var costUse=d.unitPerUse&&cpu>0?(d.unitPerUse*cpu):null;
+      var sellUse=d.sellPrice||null;
+      var profitUse=costUse!==null&&sellUse!==null?(sellUse-costUse):null;
+      var profitCls=profitUse===null?'':(profitUse>=0?'pos':'neg');
+
+      return '<tr>'
+        +'<td>'+formatDate(d.date)+'</td>'
+        +'<td class="drug-name" onclick="openDetail(\''+id+'\')">'+d.name+'</td>'
+        +'<td>'+d.boxes+'</td><td>'+d.perBox+'</td>'
+        +'<td>'+(+d.pricePerBox).toLocaleString()+' ฿</td>'
+        +'<td>'+pu+' ฿</td>'
+        +'<td class="td-remaining '+cls+'">'+rem+'<span style="font-size:11px;font-weight:400;color:var(--text-light)"> ชิ้น</span></td>'
+        +'<td class="td-sell">'+(sellUse!==null?fmtMoney(sellUse):'<span style="color:var(--silver)">—</span>')+'</td>'
+        +'<td class="td-profit '+profitCls+'">'+(profitUse!==null?fmtMoney(profitUse):'<span style="color:var(--silver)">—</span>')+'</td>'
+        +'<td><span class="source-tag">'+d.source+'</span></td>'
+        +'<td><span class="badge '+(d.paid==='paid'?'badge-paid':'badge-unpaid')+'">'+(d.paid==='paid'?'✓ จ่าย':'✗ ค้าง')+'</span></td>'
+        +'<td><div class="action-cell">'
+          +'<button class="btn-edit" onclick="openEditModal(\''+id+'\')">แก้ไข</button>'
+          +'<button class="btn-delete" onclick="askDeleteDrug(\''+id+'\',\''+d.name.replace(/'/g,"\\'")+ '\')">ลบ</button>'
+        +'</div></td>'
+        +'</tr>';
+    }).join('');
+  }
+
+  var totalRem=drugs.reduce(function(s,d){return s+getRemaining(gid(d));},0);
+  var lowCnt=drugs.filter(function(d){return getRemaining(gid(d))<d.boxes*d.perBox*0.2;}).length;
+  var unpaid=drugs.filter(function(d){return d.paid==='unpaid';}).length;
+  document.getElementById('statTotal').innerHTML=drugs.length+'<span class="stat-unit"> รายการ</span>';
+  document.getElementById('statUnits').innerHTML=totalRem.toLocaleString()+'<span class="stat-unit"> ชิ้น</span>';
+  document.getElementById('statLow').innerHTML=lowCnt+'<span class="stat-unit"> รายการ</span>';
+  document.getElementById('statUnpaid').innerHTML=unpaid+'<span class="stat-unit"> รายการ</span>';
+}
+
+// ===== CALC HELPERS =====
+function calcProfit(pricePerBox,perBox,unitPerUse,sellPrice,costId,profitId){
+  var cpu=perBox>0?pricePerBox/perBox:0;
+  var cost=unitPerUse&&cpu>0?unitPerUse*cpu:null;
+  var sell=sellPrice>0?sellPrice:null;
+  var profit=cost!==null&&sell!==null?sell-cost:null;
+  document.getElementById(costId).value=cost!==null?('฿ '+cost.toFixed(2)):'—';
+  document.getElementById(profitId).value=profit!==null?('฿ '+profit.toFixed(2)):'—';
+}
+
+function calcAddProfit(){
+  var pricePerBox=parseFloat(document.getElementById('addPriceBox').value)||0;
+  var perBox=parseInt(document.getElementById('addPerBox').value)||0;
+  var unitPerUse=parseFloat(document.getElementById('addUnitPerUse').value)||0;
+  var sell=parseFloat(document.getElementById('addSellPrice').value)||0;
+  calcProfit(pricePerBox,perBox,unitPerUse,sell,'addCostPerUse','addProfitPerUse');
+}
+
+function calcEditProfit(){
+  var pricePerBox=parseFloat(document.getElementById('editPriceBox').value)||0;
+  var perBox=parseInt(document.getElementById('editPerBox').value)||0;
+  var unitPerUse=parseFloat(document.getElementById('editUnitPerUse').value)||0;
+  var sell=parseFloat(document.getElementById('editSellPrice').value)||0;
+  calcProfit(pricePerBox,perBox,unitPerUse,sell,'editCostPerUse','editProfitPerUse');
+}
+
+function calcEditMovPreview(){
+  var movKey=document.getElementById('editMovKey').value;
+  var mov=movements.filter(function(m){return m._key===movKey;})[0];
+  var drug=mov?drugs.filter(function(d){return gid(d)===mov.drugId;})[0]:null;
+  var cpu=drug?costPerUnitOf(drug):0;
+  var qty=parseFloat(document.getElementById('editMovQty').value)||0;
+  var sell=parseFloat(document.getElementById('editMovSell').value)||0;
+  var cost=cpu>0&&qty>0?qty*cpu:null;
+  var profit=cost!==null&&sell>0?sell-cost:null;
+  document.getElementById('editMovCost').value=cost!==null?('฿ '+cost.toFixed(2)):'—';
+  document.getElementById('editMovProfit').value=profit!==null?('฿ '+profit.toFixed(2)):'—';
+}
+
+// ===== ADD =====
+function openAddModal(){
+  document.getElementById('addDate').value=new Date().toISOString().slice(0,10);
+  ['addCostPerUse','addProfitPerUse'].forEach(function(i){document.getElementById(i).value='';});
+  document.getElementById('addModal').classList.add('open');
+}
+function closeAddModal(){document.getElementById('addModal').classList.remove('open');}
+
+function saveAdd(){
+  var name=document.getElementById('addName').value.trim();
+  var boxes=parseInt(document.getElementById('addBoxes').value);
+  var perBox=parseInt(document.getElementById('addPerBox').value);
+  var pricePerBox=parseFloat(document.getElementById('addPriceBox').value);
+  var date=document.getElementById('addDate').value;
+  var source=document.getElementById('addSource').value.trim()||'ไม่ระบุ';
+  var paid=document.getElementById('addPaid').value;
+  var unitPerUse=parseFloat(document.getElementById('addUnitPerUse').value)||0;
+  var sellPrice=parseFloat(document.getElementById('addSellPrice').value)||0;
+
+  if(!name||!boxes||!perBox||!pricePerBox||!date){showToast('กรุณากรอกข้อมูลให้ครบ');return;}
+
+  var data={date:date,name:name,boxes:boxes,perBox:perBox,pricePerBox:pricePerBox,source:source,paid:paid};
+  if(unitPerUse>0) data.unitPerUse=unitPerUse;
+  if(sellPrice>0)  data.sellPrice=sellPrice;
+
+  var nr=db.ref('drugs').push();
+  nr.set(data);
+  db.ref('movements').push({drugId:nr.key,type:'in',qty:boxes*perBox,date:date,time:nowTime(),note:'รับของครั้งแรก'});
+  showToast('✓ เพิ่มรายการเรียบร้อย');
+  closeAddModal();
+  ['addName','addBoxes','addPerBox','addPriceBox','addSource','addUnitPerUse','addSellPrice','addCostPerUse','addProfitPerUse'].forEach(function(i){document.getElementById(i).value='';});
+}
+
+// ===== EDIT DRUG =====
+function openEditModal(id){
+  var drug=null;
+  for(var i=0;i<drugs.length;i++){if(gid(drugs[i])===id){drug=drugs[i];break;}}
+  if(!drug) return;
+  document.getElementById('editKey').value=id;
+  document.getElementById('editDate').value=drug.date||'';
+  document.getElementById('editSource').value=drug.source||'';
+  document.getElementById('editName').value=drug.name||'';
+  document.getElementById('editBoxes').value=drug.boxes||'';
+  document.getElementById('editPerBox').value=drug.perBox||'';
+  document.getElementById('editPriceBox').value=drug.pricePerBox||'';
+  document.getElementById('editUnitPerUse').value=drug.unitPerUse||'';
+  document.getElementById('editSellPrice').value=drug.sellPrice||'';
+  document.getElementById('editPaid').value=drug.paid||'paid';
+  calcEditProfit();
+  document.getElementById('editModal').classList.add('open');
+}
+function closeEditModal(){document.getElementById('editModal').classList.remove('open');}
+
+function saveEdit(){
+  var id=document.getElementById('editKey').value;
+  var name=document.getElementById('editName').value.trim();
+  var boxes=parseInt(document.getElementById('editBoxes').value);
+  var perBox=parseInt(document.getElementById('editPerBox').value);
+  var pricePerBox=parseFloat(document.getElementById('editPriceBox').value);
+  var date=document.getElementById('editDate').value;
+  var source=document.getElementById('editSource').value.trim()||'ไม่ระบุ';
+  var paid=document.getElementById('editPaid').value;
+  var unitPerUse=parseFloat(document.getElementById('editUnitPerUse').value)||0;
+  var sellPrice=parseFloat(document.getElementById('editSellPrice').value)||0;
+
+  if(!name||!boxes||!perBox||!pricePerBox||!date){showToast('กรุณากรอกข้อมูลให้ครบ');return;}
+
+  var data={date:date,name:name,boxes:boxes,perBox:perBox,pricePerBox:pricePerBox,source:source,paid:paid};
+  if(unitPerUse>0) data.unitPerUse=unitPerUse;
+  if(sellPrice>0)  data.sellPrice=sellPrice;
+
+  db.ref('drugs/'+id).set(data);
+  showToast('✓ แก้ไขเรียบร้อย');
+  closeEditModal();
+}
+
+// ===== REDUCE =====
+function openReduceModal(){
+  var sel=document.getElementById('reduceDrug');
+  sel.innerHTML=drugs.map(function(d){
+    return '<option value="'+gid(d)+'">'+d.name+' (เหลือ: '+getRemaining(gid(d))+' ชิ้น)</option>';
+  }).join('');
+  document.getElementById('reduceDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('reduceTime').value=nowTime();
+  ['reduceCost','reduceProfit'].forEach(function(i){document.getElementById(i).value='';});
+  onDrugSelect();
+  document.getElementById('reduceModal').classList.add('open');
+}
+function closeReduceModal(){document.getElementById('reduceModal').classList.remove('open');}
+
+function onDrugSelect(){
+  var id=document.getElementById('reduceDrug').value;
+  var drug=drugs.filter(function(d){return gid(d)===id;})[0];
+  if(drug){
+    if(drug.unitPerUse) document.getElementById('reduceQty').value=drug.unitPerUse;
+    if(drug.sellPrice){
+      document.getElementById('reduceSell').value=drug.sellPrice;
+      document.getElementById('reduceSellHint').textContent='ราคาขายปกติ: ฿'+drug.sellPrice;
+    } else {
+      document.getElementById('reduceSell').value='';
+      document.getElementById('reduceSellHint').textContent='';
+    }
+    document.getElementById('reduceQtyHint').textContent=drug.unitPerUse?('ค่าปกติ: '+drug.unitPerUse+' ยูนิต/ครั้ง'):'';
+  }
+  calcReducePreview();
+}
+
+function calcReducePreview(){
+  var id=document.getElementById('reduceDrug').value;
+  var drug=drugs.filter(function(d){return gid(d)===id;})[0];
+  var cpu=drug?costPerUnitOf(drug):0;
+  var qty=parseFloat(document.getElementById('reduceQty').value)||0;
+  var sell=parseFloat(document.getElementById('reduceSell').value)||0;
+  var cost=cpu>0&&qty>0?qty*cpu:null;
+  var profit=cost!==null&&sell>0?sell-cost:null;
+  document.getElementById('reduceCost').value=cost!==null?('฿ '+cost.toFixed(2)):'—';
+  document.getElementById('reduceProfit').value=profit!==null?('฿ '+profit.toFixed(2)):'—';
+}
+
+function saveReduce(){
+  var drugId=document.getElementById('reduceDrug').value;
+  var qty=parseFloat(document.getElementById('reduceQty').value);
+  var date=document.getElementById('reduceDate').value;
+  var time=document.getElementById('reduceTime').value;
+  var note=document.getElementById('reduceNote').value.trim()||'ใช้ออก';
+  var sell=parseFloat(document.getElementById('reduceSell').value)||0;
+
+  if(!qty||qty<=0){showToast('กรุณาระบุจำนวน');return;}
+  var rem=getRemaining(drugId);
+  if(qty>rem){showToast('คงเหลือเพียง '+rem+' ชิ้น');return;}
+
+  var drug=drugs.filter(function(d){return gid(d)===drugId;})[0];
+  var cpu=drug?costPerUnitOf(drug):0;
+  var cost=cpu>0?parseFloat((qty*cpu).toFixed(2)):0;
+  var profit=sell>0&&cost>0?parseFloat((sell-cost).toFixed(2)):0;
+
+  var mov={drugId:drugId,type:'out',qty:qty,date:date,time:time,note:note};
+  if(cost>0) mov.cost=cost;
+  if(sell>0) mov.sell=sell;
+  if(profit!==0) mov.profit=profit;
+
+  db.ref('movements').push(mov);
+  showToast('✓ บันทึกการใช้ยาเรียบร้อย');
+  closeReduceModal();
+  ['reduceQty','reduceNote','reduceSell','reduceCost','reduceProfit'].forEach(function(i){document.getElementById(i).value='';});
+}
+
+// ===== EDIT MOVEMENT =====
+function openEditMovModal(movKey){
+  var mov=movements.filter(function(m){return m._key===movKey;})[0];
+  if(!mov) return;
+  editMovDrugId=mov.drugId;
+  document.getElementById('editMovKey').value=movKey;
+  document.getElementById('editMovDate').value=mov.date||'';
+  document.getElementById('editMovTime').value=mov.time||'';
+  document.getElementById('editMovQty').value=mov.qty||'';
+  document.getElementById('editMovSell').value=mov.sell||'';
+  document.getElementById('editMovNote').value=mov.note||'';
+  calcEditMovPreview();
+  document.getElementById('editMovModal').classList.add('open');
+}
+function closeEditMovModal(){document.getElementById('editMovModal').classList.remove('open');}
+
+function saveEditMov(){
+  var movKey=document.getElementById('editMovKey').value;
+  var mov=movements.filter(function(m){return m._key===movKey;})[0];
+  if(!mov) return;
+
+  var qty=parseFloat(document.getElementById('editMovQty').value);
+  var date=document.getElementById('editMovDate').value;
+  var time=document.getElementById('editMovTime').value;
+  var note=document.getElementById('editMovNote').value.trim()||'ใช้ออก';
+  var sell=parseFloat(document.getElementById('editMovSell').value)||0;
+
+  if(!qty||qty<=0){showToast('กรุณาระบุจำนวน');return;}
+
+  var drug=drugs.filter(function(d){return gid(d)===mov.drugId;})[0];
+  var cpu=drug?costPerUnitOf(drug):0;
+  var cost=cpu>0?parseFloat((qty*cpu).toFixed(2)):0;
+  var profit=sell>0&&cost>0?parseFloat((sell-cost).toFixed(2)):0;
+
+  var updated={drugId:mov.drugId,type:'out',qty:qty,date:date,time:time,note:note};
+  if(cost>0) updated.cost=cost;
+  if(sell>0) updated.sell=sell;
+  if(profit!==0) updated.profit=profit;
+
+  db.ref('movements/'+movKey).set(updated);
+  showToast('✓ แก้ไขรายการใช้ยาเรียบร้อย');
+  closeEditMovModal();
+}
+
+// ===== DELETE =====
+function askDeleteDrug(id,name){
+  pendingDeleteKey=id; pendingDeleteType='drug';
+  document.getElementById('confirmMsg').textContent='"'+name+'" และประวัติทั้งหมดจะถูกลบถาวร';
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+function closeConfirm(){document.getElementById('confirmOverlay').classList.remove('open');pendingDeleteKey=null;pendingDeleteType=null;}
+function confirmDelete(){
+  if(!pendingDeleteKey) return;
+  if(pendingDeleteType==='drug'){
+    db.ref('drugs/'+pendingDeleteKey).remove();
+    movements.forEach(function(m){if(m.drugId===pendingDeleteKey) db.ref('movements/'+m._key).remove();});
+    showToast('✓ ลบรายการเรียบร้อย');
+  }
+  closeConfirm();
+}
+
+// ===== DETAIL =====
+function openDetail(id){
+  currentDrugId=id; currentDetailFilter='all';
+  var drug=null;
+  for(var i=0;i<drugs.length;i++){if(gid(drugs[i])===id){drug=drugs[i];break;}}
+  if(!drug) return;
+
+  document.getElementById('detailName').textContent=drug.name;
+  document.getElementById('detailSub').textContent='ที่มา: '+drug.source+' | ซื้อเมื่อ '+formatDate(drug.date);
+
+  var rem=getRemaining(id),inT=0,outT=0,totalCost=0,totalSell=0,totalProfit=0;
+  movements.forEach(function(m){
+    if(m.drugId!==id) return;
+    if(m.type==='in') inT+=m.qty;
+    else {outT+=m.qty;totalCost+=(m.cost||0);totalSell+=(m.sell||0);totalProfit+=(m.profit||0);}
+  });
+
+  document.getElementById('detailSummary').innerHTML=
+    '<div class="stat-card sage"><div class="stat-label">นำเข้าทั้งหมด</div><div class="stat-value">'+inT+'<span class="stat-unit"> ชิ้น</span></div></div>'
+   +'<div class="stat-card brick"><div class="stat-label">ใช้ออกทั้งหมด</div><div class="stat-value">'+outT+'<span class="stat-unit"> ชิ้น</span></div></div>'
+   +'<div class="stat-card rose"><div class="stat-label">คงเหลือ</div><div class="stat-value" style="font-weight:800">'+rem+'<span class="stat-unit"> ชิ้น</span></div></div>'
+   +(totalSell>0?'<div class="stat-card blush"><div class="stat-label">รายได้รวม</div><div class="stat-value" style="font-size:16px">'+fmtMoney(totalSell)+'</div></div>':'')
+   +(totalProfit!==0?'<div class="stat-card '+(totalProfit>=0?'sage':'brick')+'"><div class="stat-label">กำไรรวม</div><div class="stat-value" style="font-size:16px;color:'+(totalProfit>=0?'var(--profit)':'var(--brick)')+'">'+fmtMoney(totalProfit)+'</div></div>':'');
+
+  document.querySelectorAll('.filter-tab').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.filter-tab')[0].classList.add('active');
+  renderTimeline();
+  document.getElementById('detailPage').classList.add('open');
+  window.scrollTo(0,0);
+}
+
+function renderTimeline(){
+  var mvs=movements.filter(function(m){
+    return m.drugId===currentDrugId&&(currentDetailFilter==='all'||m.type===currentDetailFilter);
+  }).sort(function(a,b){return new Date(b.date+'T'+(b.time||'00:00'))-new Date(a.date+'T'+(a.time||'00:00'));});
+
+  var c=document.getElementById('timelineContainer');
+  if(!mvs.length){c.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><div>ไม่มีข้อมูล</div></div>';return;}
+
+  c.innerHTML=mvs.map(function(m,i){
+    var badges='';
+    if(m.type==='out'){
+      if(m.cost) badges+='<span class="tl-badge tl-badge-cost">ต้นทุน '+fmtMoney(m.cost)+'</span>';
+      if(m.sell) badges+='<span class="tl-badge tl-badge-sell">ขาย '+fmtMoney(m.sell)+'</span>';
+      if(m.profit!==undefined) badges+='<span class="tl-badge tl-badge-profit">กำไร '+fmtMoney(m.profit)+'</span>';
+    }
+    var editBtn=m.type==='out'?('<button class="tl-edit-btn" onclick="openEditMovModal(\''+m._key+'\')">✏️ แก้ไข</button>'):'';
+
+    return '<div class="timeline-item">'
+      +'<div class="tl-date-col"><div class="tl-date">'+formatDate(m.date)+'</div><div class="tl-time">'+(m.time||'')+'</div></div>'
+      +'<div class="tl-line-col"><div class="tl-dot '+m.type+'"></div>'+(i<mvs.length-1?'<div class="tl-line"></div>':'')+'</div>'
+      +'<div><div class="tl-card '+m.type+'">'
+        +'<div class="tl-card-header">'
+          +'<span class="tl-type '+m.type+'">'+(m.type==='in'?'▲ นำเข้า':'▼ ใช้ออก')+'</span>'
+          +'<span class="tl-qty '+m.type+'">'+(m.type==='in'?'+':'-')+m.qty+' ยูนิต</span>'
+        +'</div>'
+        +'<div class="tl-note">'+m.note+'</div>'
+        +(badges?'<div class="tl-badges">'+badges+'</div>':'')
+        +editBtn
+      +'</div></div>'
+    +'</div>';
+  }).join('');
+}
+
+function filterTimeline(type,el){
+  currentDetailFilter=type;
+  document.querySelectorAll('.filter-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  renderTimeline();
+}
+function closeDetail(){document.getElementById('detailPage').classList.remove('open');}
+
+['addModal','editModal','reduceModal','editMovModal'].forEach(function(id){
+  document.getElementById(id).addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+});
+document.getElementById('confirmOverlay').addEventListener('click',function(e){if(e.target===this)closeConfirm();});
+</script>
+
+</body>
+</html>
